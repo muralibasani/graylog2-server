@@ -16,10 +16,10 @@
  */
 package org.graylog2.grok;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Iterables;
-import com.google.common.collect.Sets;
+import com.google.common.collect.ImmutableSet;
 import oi.thekraken.grok.api.Grok;
 import oi.thekraken.grok.api.exception.GrokException;
 import org.bson.types.ObjectId;
@@ -41,8 +41,11 @@ import java.util.Set;
 import java.util.regex.PatternSyntaxException;
 
 public class MongoDbGrokPatternService implements GrokPatternService {
-    public static final String GROK_PATTERNS = "grok_patterns";
     private static final Logger log = LoggerFactory.getLogger(MongoDbGrokPatternService.class);
+
+    @VisibleForTesting
+    static final String COLLECTION_NAME = "grok_patterns";
+
     private final JacksonDBCollection<GrokPattern, ObjectId> dbCollection;
 
     @Inject
@@ -50,7 +53,7 @@ public class MongoDbGrokPatternService implements GrokPatternService {
                                         MongoJackObjectMapperProvider mapper) {
 
         dbCollection = JacksonDBCollection.wrap(
-                mongoConnection.getDatabase().getCollection(GROK_PATTERNS),
+                mongoConnection.getDatabase().getCollection(COLLECTION_NAME),
                 GrokPattern.class,
                 ObjectId.class,
                 mapper.get());
@@ -66,11 +69,15 @@ public class MongoDbGrokPatternService implements GrokPatternService {
     }
 
     @Override
+    public Set<GrokPattern> bulkLoad(Collection<String> patternIds) {
+        final DBCursor<GrokPattern> dbCursor = dbCollection.find(DBQuery.in("_id", patternIds));
+        return ImmutableSet.copyOf((Iterable<GrokPattern>) dbCursor);
+    }
+
+    @Override
     public Set<GrokPattern> loadAll() {
-        final DBCursor<GrokPattern> grokPatterns = dbCollection.find();
-        final Set<GrokPattern> patterns = Sets.newHashSet();
-        Iterables.addAll(patterns, grokPatterns);
-        return patterns;
+        final DBCursor<GrokPattern> dbCursor = dbCollection.find();
+        return ImmutableSet.copyOf((Iterable<GrokPattern>) dbCursor);
     }
 
     @Override
