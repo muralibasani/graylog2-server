@@ -16,6 +16,7 @@
  */
 package org.graylog2.streams;
 
+import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Sets;
 import com.mongodb.BasicDBObject;
 import com.mongodb.DBCollection;
@@ -37,6 +38,7 @@ import org.mongojack.JacksonDBCollection;
 import org.mongojack.WriteResult;
 
 import javax.inject.Inject;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -72,14 +74,15 @@ public class OutputServiceImpl implements OutputService {
 
     @Override
     public Set<Output> loadAll() {
-        return toAbstractSetType(coll.find().toArray());
+        return ImmutableSet.copyOf((Iterable<? extends Output>) coll.find());
     }
 
-    private Set<Output> toAbstractSetType(List<OutputImpl> outputs) {
-        final Set<Output> result = Sets.newHashSet();
-        result.addAll(outputs);
+    @Override
+    public Set<Output> loadByIds(Collection<String> ids) {
+        final DBQuery.Query query = DBQuery.in(OutputImpl.FIELD_ID, ids);
+        final org.mongojack.DBCursor<OutputImpl> dbCursor = coll.find(query);
 
-        return result;
+        return ImmutableSet.copyOf((Iterable<? extends Output>) dbCursor);
     }
 
     @Override
